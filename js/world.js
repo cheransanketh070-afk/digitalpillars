@@ -1,0 +1,39 @@
+(function(){
+  const canvas=document.getElementById('world'); const gl=canvas.getContext('webgl',{antialias:true,alpha:false,preserveDrawingBuffer:false});
+  if(!gl){canvas.style.display='none';return}
+  const vs=`attribute vec3 aPos; attribute vec3 aNormal; attribute vec3 aColor; uniform mat4 uMVP; uniform mat4 uModel; uniform vec3 uLight; varying vec3 vColor; varying float vLight; void main(){vec3 n=normalize(mat3(uModel)*aNormal);float d=max(dot(n,normalize(uLight)),0.0);vColor=aColor;vLight=.22+.78*d;gl_Position=uMVP*vec4(aPos,1.0);}`;
+  const fs=`precision mediump float; varying vec3 vColor; varying float vLight; uniform float uAlpha; void main(){gl_FragColor=vec4(vColor*vLight,uAlpha);}`;
+  const ps=`attribute vec3 aPos; attribute float aSize; uniform mat4 uMVP; uniform float uTime; uniform vec2 uRes; void main(){vec3 p=aPos;p.x+=sin(uTime*.15+p.z*1.7)*.08;p.y+=cos(uTime*.12+p.x*2.1)*.06;gl_Position=uMVP*vec4(p,1.0);gl_PointSize=aSize*(1.0/max(.25,-gl_Position.z));}`;
+  const pfs=`precision mediump float; uniform float uAlpha; void main(){vec2 uv=gl_PointCoord-.5;float d=dot(uv,uv);float a=smoothstep(.25,0.0,d)*uAlpha;gl_FragColor=vec4(.44,.72,1.0,a);}`;
+  function prog(v,f){const p=gl.createProgram();for(const [src,type] of [[v,gl.VERTEX_SHADER],[f,gl.FRAGMENT_SHADER]]){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);gl.attachShader(p,s)}gl.linkProgram(p);return p}
+  const P=prog(vs,fs), PP=prog(ps,pfs);
+  const loc={pos:gl.getAttribLocation(P,'aPos'),normal:gl.getAttribLocation(P,'aNormal'),color:gl.getAttribLocation(P,'aColor'),mvp:gl.getUniformLocation(P,'uMVP'),model:gl.getUniformLocation(P,'uModel'),light:gl.getUniformLocation(P,'uLight'),alpha:gl.getUniformLocation(P,'uAlpha')};
+  const ploc={pos:gl.getAttribLocation(PP,'aPos'),size:gl.getAttribLocation(PP,'aSize'),mvp:gl.getUniformLocation(PP,'uMVP'),time:gl.getUniformLocation(PP,'uTime'),alpha:gl.getUniformLocation(PP,'uAlpha')};
+  function mat4(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])}
+  function mul(a,b){const o=new Float32Array(16);for(let r=0;r<4;r++)for(let c=0;c<4;c++)o[c+r*4]=a[r*4]*b[c]+a[r*4+1]*b[c+4]+a[r*4+2]*b[c+8]+a[r*4+3]*b[c+12];return o}
+  function persp(fov,asp,n,f){const t=1/Math.tan(fov/2),o=mat4();o[0]=t/asp;o[5]=t;o[10]=(f+n)/(n-f);o[11]=-1;o[14]=2*f*n/(n-f);o[15]=0;return o}
+  function trans(x,y,z){const o=mat4();o[12]=x;o[13]=y;o[14]=z;return o}
+  function scale(x,y,z){const o=mat4();o[0]=x;o[5]=y;o[10]=z;return o}
+  function ry(a){const c=Math.cos(a),s=Math.sin(a),o=mat4();o[0]=c;o[2]=s;o[8]=-s;o[10]=c;return o}
+  function rx(a){const c=Math.cos(a),s=Math.sin(a),o=mat4();o[5]=c;o[6]=-s;o[9]=s;o[10]=c;return o}
+  function hexPrism(r,h, col, x,y,z, rot=0){const verts=[],norm=[],colors=[],idx=[];for(let i=0;i<6;i++){const a=rot+i*Math.PI/3;verts.push(r*Math.cos(a),-h/2,r*Math.sin(a));verts.push(r*Math.cos(a),h/2,r*Math.sin(a));}
+    for(let i=0;i<6;i++){const a=rot+(i+.5)*Math.PI/3;const nx=Math.cos(a),nz=Math.sin(a);for(let k=0;k<2;k++){norm.push(nx,0,nz);colors.push(col[0],col[1],col[2])}}
+    colors.push(col[0]*.7,col[1]*.7,col[2]*.7,col[0],col[1],col[2]);
+    for(let i=0;i<6;i++){const a=i*2,b=((i+1)%6)*2;idx.push(a,b,a+1,b,b+1,a+1)}
+    const base=verts.length/3; // top/bottom separate
+    verts.push(0,h/2,0,0,-h/2,0);norm.push(0,1,0,0,-1,0);colors.push(col[0]*1.2,col[1]*1.2,col[2]*1.2,col[0]*.5,col[1]*.5,col[2]*.5);
+    for(let i=0;i<6;i++){idx.push(base,((i+1)%6)*2+1, i*2+1);idx.push(base+1,i*2,((i+1)%6)*2)}
+    return {verts,norm,colors,idx,x,y,z};}
+  const meshes=[];for(let i=0;i<10;i++){const ang=i/10*Math.PI*2;const r=.35+.12*(i%3);meshes.push(hexPrism(r,.8+.65*((i*7)%5)/4,[.24+.05*(i%3),.55+.07*(i%4),.92+.02*(i%5)],Math.cos(ang)*.27,0,Math.sin(ang)*.27,ang))}
+  meshes.push(hexPrism(.24,2.15,[.55,.8,1],0,.05,0,.25)); meshes.push(hexPrism(.18,1.55,[.32,.62,1],-.4,-.1,.04,.45)); meshes.push(hexPrism(.16,1.25,[.4,.75,1],.42,-.25,-.05,.05));
+  for(const m of meshes){m.v=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,m.v);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.verts),gl.STATIC_DRAW);m.n=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,m.n);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.norm),gl.STATIC_DRAW);m.c=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,m.c);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.colors),gl.STATIC_DRAW);m.i=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.i);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(m.idx),gl.STATIC_DRAW);m.count=m.idx.length}
+  const particleCount=420, pv=[];for(let i=0;i<particleCount;i++){const a=Math.random()*Math.PI*2,r=.7+Math.random()*3.2,y=(Math.random()-.5)*3.6;pv.push(Math.cos(a)*r,y,Math.sin(a)*r)}const pb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,pb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pv),gl.STATIC_DRAW);const sb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sb);const sv=new Float32Array(particleCount);for(let i=0;i<particleCount;i++)sv[i]=1.5+Math.random()*2.5;gl.bufferData(gl.ARRAY_BUFFER,sv,gl.STATIC_DRAW);
+  let W=innerWidth,H=innerHeight;function resize(){W=innerWidth;H=innerHeight;const d=Math.min(devicePixelRatio,1.8);canvas.width=W*d;canvas.height=H*d;gl.viewport(0,0,canvas.width,canvas.height)}addEventListener('resize',resize,{passive:true});resize();gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
+  let t0=performance.now(); window.DPWorld={setScene(n){window.__dpScene=n}};
+  function frame(now){const tm=(now-t0)/1000, sc=window.__dpScene||0;gl.clearColor(.012,.018,.028,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const asp=W/H, proj=persp(1.0,asp,.1,20);let camZ=6.6-sc*.2, camX=Math.sin(tm*.16)*.5 + (sc===1?-1.2:sc===2?.65:0), camY=Math.cos(tm*.13)*.12;const view=mul(rx(camY*.1),mul(ry(.0),trans(-camX,-.1,-camZ)));const vp=mul(proj,view);
+    // particles
+    gl.useProgram(PP);gl.bindBuffer(gl.ARRAY_BUFFER,pb);gl.enableVertexAttribArray(ploc.pos);gl.vertexAttribPointer(ploc.pos,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.enableVertexAttribArray(ploc.size);gl.vertexAttribPointer(ploc.size,1,gl.FLOAT,false,0,0);gl.uniformMatrix4fv(ploc.mvp,false,vp);gl.uniform1f(ploc.time,tm);gl.uniform1f(ploc.alpha,sc===3?.46:.7);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,particleCount);gl.depthMask(true);
+    gl.useProgram(P);gl.uniform3f(loc.light,-.4,1,.7);gl.uniform1f(loc.alpha,sc===3?.8:1);
+    for(let i=0;i<meshes.length;i++){const m=meshes[i];const wob=Math.sin(tm*.7+i)*.02;let model=mul(trans(m.x,m.y+wob,m.z),mul(ry(tm*.42*(i%2?-1:1)+i*.25),rx(Math.sin(tm*.25+i)*.08))); if(sc===1) model=mul(trans(m.x-.65*(i%3),m.y,m.z-.05*i),mul(ry(tm*.5+i),rx(.15))); if(sc===2) model=mul(trans(m.x*.7,m.y,m.z*.7),mul(ry(-tm*.3+i*.2),scale(1.0,1.0,1.0))); if(sc===4) model=mul(trans(m.x*1.1-.3,m.y,m.z-.7),mul(ry(tm*.35+i*.1),rx(.1))); const mvp=mul(vp,model);gl.uniformMatrix4fv(loc.mvp,false,mvp);gl.uniformMatrix4fv(loc.model,false,model);gl.bindBuffer(gl.ARRAY_BUFFER,m.v);gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,m.n);gl.enableVertexAttribArray(loc.normal);gl.vertexAttribPointer(loc.normal,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,m.c);gl.enableVertexAttribArray(loc.color);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.i);gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0)}
+    requestAnimationFrame(frame)}requestAnimationFrame(frame);
+})();
