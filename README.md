@@ -1,19 +1,22 @@
-# Digital Pillars — Motion Site V3
+# Digital Pillars
 
-A fixed-viewport, cinematic digital-agency presentation inspired by the supplied reference video. It is intentionally not a conventional long scrolling website.
+Cinematic fixed-viewport agency experience built with semantic HTML, CSS 3D and native WebGL.
 
-## Interaction model
-- Wheel / trackpad: advance between five cinematic scenes.
-- Touch swipe: advance scenes.
-- Arrow/Page keys: navigate scenes.
-- Service cards are real links to dedicated pages.
-- Small AI assistant dock opens a click-only FAQ modal.
-- Review arrows change the testimonial card.
-- Brief opens a functional mailto contact form.
-- Pointer tilt + magnetic CTAs are enabled only for fine pointers.
+## Structure
+- index.html — five-scene presentation shell.
+- css/styles.css + css/v4.css — visual and motion layers.
+- js/world.js — native WebGL environment, particles and procedural geometry.
+- js/app.js — scene navigation, interactions, FAQ, reviews and project brief.
+- services/ — dedicated service layers.
+- scripts/validate.mjs — dependency-free production validation.
 
-## Native 3D
-The hero object is rendered in WebGL from procedural geometry. It is not a static AI image. The renderer includes translucent-looking faceted pillar geometry, particles, depth, lighting and scene-specific camera movement.
+## Services
+Performance / paid social, social presence, digital experiences, brand strategy, creator partnerships and consulting.
 
-## Deploy
-Static site. No Next.js. In Vercel choose Framework = Other, Root Directory = folder containing index.html, Build Command = npm run build, Output Directory = .
+## Deployment
+Static site. Vercel can deploy it with no framework preset; build command: npm run build; output: repository root.
+
+## Production safeguards
+The build validates required routes and JavaScript syntax. Runtime includes WebGL diagnostics, visibility-aware rendering, reduced-motion handling and a WebGL fallback.
+
+The supplied ZIP was used as a source/reference package for this production pass. The current main experience intentionally keeps its primary visual layer procedural rather than depending on pasted raster imagery.
