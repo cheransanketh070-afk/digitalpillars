@@ -1,8 +1,10 @@
 {
-  "name": "digital-pillars-v3",
-  "version": "3.0.0",
+  "name": "digital-pillars",
+  "version": "4.1.0",
   "private": true,
+  "description": "Digital Pillars cinematic static site.",
   "scripts": {
-    "build": "echo static build: no bundler required"
+    "build": "node scripts/validate.mjs",
+    "validate": "node scripts/validate.mjs"
   }
 }
